@@ -1,80 +1,52 @@
-import typing
+import sys
 
 
-ALIVE = 1
-DEAD = 0
+MAX_N = 100000
+MAX_TREE_SIZE = 262143
+# tree size calculation: (1 << (math.ceil(math.log2(len(array))+1))) - 1
 
 
-class SegmentTree:
-    def __init__(self, arr: typing.List[int]) -> None:
-        n = len(arr)
-        self.st = [0] * (4*n)
-        self.n = n
-        for i in range(n):
-            self.update(i, arr[i])
-        pass
-
-    def shift_up(self, si: int):
-        parent = si >> 1
-        while parent > 0:
-            lchild = parent << 1
-            rchild = lchild + 1
-            self.st[parent] = self.st[lchild] + self.st[rchild]
-            parent = parent >> 1
-
-    def update(self, index: int, value: int):
-        es = 0
-        ee = self.n-1
-        si = 1
-        while es < ee:
-            mid = (es+ee)//2
-            if mid >= index:
-                ee = mid
-                si = si * 2
-            else:
-                es = mid+1
-                si = si * 2 + 1
-        self.st[si] = value
-        self.shift_up(si)
-
-    def query_util(self, si, es, ee, value):
-        if es == ee:
-            return es
-        mid = (es + ee) // 2
-        lchild = si << 1
-        rchild = lchild+1
-        if (value <= self.st[lchild]):
-            return self.query_util(lchild, es, mid, value)
-        else:
-            return self.query_util(rchild, mid+1, ee, value-self.st[lchild])
-
-    def query(self, value: int) -> int:
-        return self.query_util(1, 1, self.n, value)
-
-    def sum(self) -> int:
-        return self.st[1]
+tree = [0] * MAX_TREE_SIZE
 
 
-def main():
-    N, K = map(int, input().split())
-
-    st = SegmentTree([DEAD]+[ALIVE]*N)
-    nth = 1
-
-    print("<", end='')
-    for n in range(N, 0, -1):
-        nth = (nth+K-1) % n
-        if nth == 0:
-            nth = n
-
-        next = st.query(nth)
-        st.update(next, DEAD)
-
-        print(nth, end='')
-        if n > 1:
-            print(', ', end='')
-    print(">")
+def update(array_index: int, value: int, tree_index: int, array_start: int, array_end: int):
+    if array_start == array_end:
+        tree[tree_index] = value
+        return
+    array_mid = (array_start + array_end) >> 1
+    tree_lchild = tree_index << 1
+    if array_index <= array_mid:
+        update(array_index, value, tree_lchild, array_start, array_mid)
+    else:
+        update(array_index, value, tree_lchild+1, array_mid+1, array_end)
+    tree[tree_index] = tree[tree_lchild] + tree[tree_lchild+1]
 
 
-if __name__ == '__main__':
-    main()
+def query(value: int, tree_index: int, array_start: int, array_end: int) -> int:
+    if array_start == array_end:
+        return array_start
+    array_mid = (array_start + array_end) >> 1
+    tree_lchild = tree_index << 1
+    if value <= tree[tree_lchild]:
+        return query(value, tree_lchild, array_start, array_mid)
+    else:
+        return query(value-tree[tree_lchild], tree_lchild+1, array_mid+1, array_end)
+
+
+N, K = map(int, sys.stdin.readline().split())
+N_minus_one = N-1
+
+for i in range(MAX_N):
+    update(i, 1, 1, 0, N-1)
+
+nth = 1
+sequence = []
+
+for n in range(N, 0, -1):
+    nth = (nth+K-1) % n
+    nth = n if nth == 0 else nth
+    nth_index = query(nth, 1, 0, N_minus_one)
+    update(nth_index, 0, 1, 0, N_minus_one) # Zero means dead/removed
+    sequence.append(str(nth_index+1))
+
+sys.stdout.write('<'+', '.join(sequence)+'>')
